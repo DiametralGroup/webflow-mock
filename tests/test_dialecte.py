@@ -268,6 +268,11 @@ def test_field_data_ne_garantit_que_name_et_slug(client, collection_id):
     assert isinstance(donnees["categorie"], str) and len(donnees["categorie"]) == 24
     assert isinstance(donnees["auteur"], str) and len(donnees["auteur"]) == 24
     assert set(donnees["image-principale"]) == {"fileId", "url", "alt"}
+    # Le libellé de l'option ne se lit que dans la DÉFINITION du champ.
+    collection = client.get(f"{BASE}/collections/{collection_id}", headers=H).json()
+    champ = next(c for c in collection["fields"] if c["slug"] == "categorie")
+    options = {o["id"]: o["name"] for o in champ["validations"]["options"]}
+    assert donnees["categorie"] in options
 
 
 def test_le_tri_des_elements_est_explicite(client, collection_id):

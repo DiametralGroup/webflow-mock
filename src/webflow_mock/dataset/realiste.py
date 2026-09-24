@@ -381,9 +381,33 @@ def _pages(
     return primaires, anglaises
 
 
+#: Les options des champs `Option`, par (collection, slug). Dans `fieldData`
+#: un champ `Option` vaut l'IDENTIFIANT de l'option, pas son libellé : le
+#: libellé ne se lit que dans `validations.options` de la définition du champ.
+#: Un consommateur qui ne rapproche pas les deux publie des identifiants.
+OPTIONS: dict[tuple[str, str], tuple[str, ...]] = {
+    ("articles", "categorie"): (*POLES, "Vie d'agence", "Événement"),
+    ("etudes", "secteur"): SECTEURS,
+    ("etudes", "expertise"): POLES,
+    ("offres", "agence"): AGENCES,
+    ("offres", "pole"): POLES,
+    ("offres", "type-de-contrat"): CONTRATS,
+    ("auteurs", "agence"): AGENCES,
+    ("evenements", "format"): ("Meetup", "Webinar", "Salon", "Petit-déjeuner"),
+}
+
+
 def _champ(
     seed: int, collection: str, slug: str, nom: str, type_: str, *, requis: bool = False
 ) -> dict[str, Any]:
+    validations: dict[str, Any] | None = None
+    if type_ == "Option":
+        validations = {
+            "options": [
+                {"id": _option(seed, collection, slug, valeur), "name": valeur}
+                for valeur in OPTIONS[(collection, slug)]
+            ]
+        }
     return {
         "id": oid(seed, "field", collection, slug),
         "isRequired": requis,
@@ -392,7 +416,7 @@ def _champ(
         "displayName": nom,
         "slug": slug,
         "helpText": None,
-        "validations": None,
+        "validations": validations,
     }
 
 
