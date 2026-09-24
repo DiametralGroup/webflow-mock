@@ -1,0 +1,2545 @@
+openapi: 3.1.0
+info:
+  title: Webflow Data API v2 — mock
+  description: Mock de la Data API Webflow v2 (lecture seule) sur le site vitrine
+    de « Boréal Conseil ». Pagination `offset`/`limit`/`total`, identifiants en chaînes,
+    erreurs `{message, code, externalReference, details}`, scopes granulaires, soumissions
+    de formulaires nominatives.
+  version: 0.1.0
+servers:
+- url: https://api.webflow.com
+paths:
+  /v2/token/authorized_by:
+    get:
+      tags:
+      - Token
+      summary: L'utilisateur qui a autorisé le jeton
+      operationId: authorized_by_v2_token_authorized_by_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Utilisateur'
+        '400':
+          description: 'Paramètre invalide : `limit` hors bornes (elle n''est PAS
+            rabotée), `offset` négatif ou illisible. Code `validation_error`.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErreurWebflow'
+        '401':
+          description: Jeton absent, invalide ou révoqué — les trois cas sont indistincts.
+            Code `not_authorized`. N'est PAS retentable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErreurWebflow'
+        '403':
+          description: Le jeton ne porte pas le scope requis. Code `missing_scopes`,
+            et le message NOMME les scopes manquants. N'est PAS retentable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErreurWebflow'
+        '404':
+          description: Ressource inconnue, ou hors du périmètre du jeton. Code `resource_not_found`.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErreurWebflow'
+        '409':
+          description: 'Formulaires seulement : le site doit être republié pour que
+            la fonctionnalité soit disponible. Code `forms_require_republish`. Rien
+            côté client ne le résout.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErreurWebflow'
+        '429':
+          description: Limite de débit atteinte — 60 requêtes / minute au jeton. Code
+            `too_many_requests`, en-tête `Retry-After` (typiquement 60). Les en-têtes
+            `X-RateLimit-Limit` et `X-RateLimit-Remaining` sont présents sur TOUTES
+            les réponses.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErreurWebflow'
+        '500':
+          description: Panne injectée. Code `internal_error`.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErreurWebflow'
+        '503':
+          description: Panne transitoire injectée.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErreurWebflow'
+  /v2/token/introspect:
+    get:
+      tags:
+      - Token
+      summary: Ce que le jeton peut faire, et sur quoi
+      description: 'Le test de fumée d''un connecteur : quels scopes, quels sites
+        ?
+
+
+        Aucun scope requis — c''est justement lui qui sert à découvrir les scopes
+
+        dont on dispose. Un connecteur doit l''appeler AVANT d''ouvrir son pipeline
+        :
+
+        échouer sur une authentification vaut mieux qu''un run à moitié fait.'
+      operationId: introspect_v2_token_introspect_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenIntrospection'
+        '400':
+          description: 'Paramètre invalide : `limit` hors bornes (elle n''est PAS
+            rabotée), `offset` négatif ou illisible. Code `validation_error`.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErreurWebflow'
+        '401':
+          description: Jeton absent, invalide ou révoqué — les trois cas sont indistincts.
+            Code `not_authorized`. N'est PAS retentable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErreurWebflow'
+        '403':
+          description: Le jeton ne porte pas le scope requis. Code `missing_scopes`,
+            et le message NOMME les scopes manquants. N'est PAS retentable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErreurWebflow'
+        '404':
+          description: Ressource inconnue, ou hors du périmètre du jeton. Code `resource_not_found`.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErreurWebflow'
+        '409':
+          description: 'Formulaires seulement : le site doit être republié pour que
+            la fonctionnalité soit disponible. Code `forms_require_republish`. Rien
+            côté client ne le résout.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErreurWebflow'
+        '429':
+          description: Limite de débit atteinte — 60 requêtes / minute au jeton. Code
+            `too_many_requests`, en-tête `Retry-After` (typiquement 60). Les en-têtes
+            `X-RateLimit-Limit` et `X-RateLimit-Remaining` sont présents sur TOUTES
+            les réponses.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErreurWebflow'
+        '500':
+          description: Panne injectée. Code `internal_error`.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErreurWebflow'
+        '503':
+          description: Panne transitoire injectée.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErreurWebflow'
+  /v2/sites:
+    get:
+      tags:
+      - Sites
+      summary: Les sites autorisés au jeton — NON paginée
+      operationId: sites_v2_sites_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListeSites'
+        '400':
+          description: 'Paramètre invalide : `limit` hors bornes (elle n''est PAS
+            rabotée), `offset` négatif ou illisible. Code `validation_error`.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErreurWebflow'
+        '401':
+          description: Jeton absent, invalide ou révoqué — les trois cas sont indistincts.
+            Code `not_authorized`. N'est PAS retentable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErreurWebflow'
+        '403':
+          description: Le jeton ne porte pas le scope requis. Code `missing_scopes`,
+            et le message NOMME les scopes manquants. N'est PAS retentable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErreurWebflow'
+        '404':
+          description: Ressource inconnue, ou hors du périmètre du jeton. Code `resource_not_found`.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErreurWebflow'
+        '409':
+          description: 'Formulaires seulement : le site doit être republié pour que
+            la fonctionnalité soit disponible. Code `forms_require_republish`. Rien
+            côté client ne le résout.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErreurWebflow'
+        '429':
+          description: Limite de débit atteinte — 60 requêtes / minute au jeton. Code
+            `too_many_requests`, en-tête `Retry-After` (typiquement 60). Les en-têtes
+            `X-RateLimit-Limit` et `X-RateLimit-Remaining` sont présents sur TOUTES
+            les réponses.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErreurWebflow'
+        '500':
+          description: Panne injectée. Code `internal_error`.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErreurWebflow'
+        '503':
+          description: Panne transitoire injectée.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErreurWebflow'
+  /v2/sites/{site_id}:
+    get:
+      tags:
+      - Sites
+      summary: Un site
+      operationId: site_v2_sites__site_id__get
+      parameters:
+      - name: site_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Site Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Site'
+        '400':
+          description: 'Paramètre invalide : `limit` hors bornes (elle n''est PAS
+            rabotée), `offset` négatif ou illisible. Code `validation_error`.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErreurWebflow'
+        '401':
+          description: Jeton absent, invalide ou révoqué — les trois cas sont indistincts.
+            Code `not_authorized`. N'est PAS retentable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErreurWebflow'
+        '403':
+          description: Le jeton ne porte pas le scope requis. Code `missing_scopes`,
+            et le message NOMME les scopes manquants. N'est PAS retentable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErreurWebflow'
+        '404':
+          description: Ressource inconnue, ou hors du périmètre du jeton. Code `resource_not_found`.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErreurWebflow'
+        '409':
+          description: 'Formulaires seulement : le site doit être republié pour que
+            la fonctionnalité soit disponible. Code `forms_require_republish`. Rien
+            côté client ne le résout.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErreurWebflow'
+        '429':
+          description: Limite de débit atteinte — 60 requêtes / minute au jeton. Code
+            `too_many_requests`, en-tête `Retry-After` (typiquement 60). Les en-têtes
+            `X-RateLimit-Limit` et `X-RateLimit-Remaining` sont présents sur TOUTES
+            les réponses.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErreurWebflow'
+        '500':
+          description: Panne injectée. Code `internal_error`.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErreurWebflow'
+        '503':
+          description: Panne transitoire injectée.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErreurWebflow'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /v2/sites/{site_id}/custom_domains:
+    get:
+      tags:
+      - Sites
+      summary: Les domaines personnalisés — NON paginée
+      operationId: custom_domains_v2_sites__site_id__custom_domains_get
+      parameters:
+      - name: site_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Site Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListeCustomDomains'
+        '400':
+          description: 'Paramètre invalide : `limit` hors bornes (elle n''est PAS
+            rabotée), `offset` négatif ou illisible. Code `validation_error`.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErreurWebflow'
+        '401':
+          description: Jeton absent, invalide ou révoqué — les trois cas sont indistincts.
+            Code `not_authorized`. N'est PAS retentable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErreurWebflow'
+        '403':
+          description: Le jeton ne porte pas le scope requis. Code `missing_scopes`,
+            et le message NOMME les scopes manquants. N'est PAS retentable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErreurWebflow'
+        '404':
+          description: Ressource inconnue, ou hors du périmètre du jeton. Code `resource_not_found`.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErreurWebflow'
+        '409':
+          description: 'Formulaires seulement : le site doit être republié pour que
+            la fonctionnalité soit disponible. Code `forms_require_republish`. Rien
+            côté client ne le résout.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErreurWebflow'
+        '429':
+          description: Limite de débit atteinte — 60 requêtes / minute au jeton. Code
+            `too_many_requests`, en-tête `Retry-After` (typiquement 60). Les en-têtes
+            `X-RateLimit-Limit` et `X-RateLimit-Remaining` sont présents sur TOUTES
+            les réponses.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErreurWebflow'
+        '500':
+          description: Panne injectée. Code `internal_error`.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErreurWebflow'
+        '503':
+          description: Panne transitoire injectée.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErreurWebflow'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /v2/sites/{site_id}/pages:
+    get:
+      tags:
+      - Pages
+      summary: Les pages d'un site
+      operationId: pages_v2_sites__site_id__pages_get
+      parameters:
+      - name: site_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Site Id
+      - name: localeId
+        in: query
+        required: false
+        schema:
+          type: string
+        description: 'La locale des pages demandées ; la primaire par défaut. Une
+          page est UNE entité : même `id` dans chaque locale.'
+      - name: offset
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 0
+        description: Décalage de pagination. Défaut 0. Un offset au-delà du total
+          rend une page vide.
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 100
+        description: Taille de page. Défaut 100, entre 1 et 100. Hors bornes → 400
+          `validation_error`.
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListePages'
+        '400':
+          description: 'Paramètre invalide : `limit` hors bornes (elle n''est PAS
+            rabotée), `offset` négatif ou illisible. Code `validation_error`.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErreurWebflow'
+        '401':
+          description: Jeton absent, invalide ou révoqué — les trois cas sont indistincts.
+            Code `not_authorized`. N'est PAS retentable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErreurWebflow'
+        '403':
+          description: Le jeton ne porte pas le scope requis. Code `missing_scopes`,
+            et le message NOMME les scopes manquants. N'est PAS retentable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErreurWebflow'
+        '404':
+          description: Ressource inconnue, ou hors du périmètre du jeton. Code `resource_not_found`.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErreurWebflow'
+        '409':
+          description: 'Formulaires seulement : le site doit être republié pour que
+            la fonctionnalité soit disponible. Code `forms_require_republish`. Rien
+            côté client ne le résout.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErreurWebflow'
+        '429':
+          description: Limite de débit atteinte — 60 requêtes / minute au jeton. Code
+            `too_many_requests`, en-tête `Retry-After` (typiquement 60). Les en-têtes
+            `X-RateLimit-Limit` et `X-RateLimit-Remaining` sont présents sur TOUTES
+            les réponses.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErreurWebflow'
+        '500':
+          description: Panne injectée. Code `internal_error`.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErreurWebflow'
+        '503':
+          description: Panne transitoire injectée.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErreurWebflow'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /v2/pages/{page_id}:
+    get:
+      tags:
+      - Pages
+      summary: Les métadonnées d'une page
+      operationId: page_v2_pages__page_id__get
+      parameters:
+      - name: page_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Page Id
+      - name: localeId
+        in: query
+        required: false
+        schema:
+          type: string
+        description: La locale de la variante.
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Page'
+        '400':
+          description: 'Paramètre invalide : `limit` hors bornes (elle n''est PAS
+            rabotée), `offset` négatif ou illisible. Code `validation_error`.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErreurWebflow'
+        '401':
+          description: Jeton absent, invalide ou révoqué — les trois cas sont indistincts.
+            Code `not_authorized`. N'est PAS retentable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErreurWebflow'
+        '403':
+          description: Le jeton ne porte pas le scope requis. Code `missing_scopes`,
+            et le message NOMME les scopes manquants. N'est PAS retentable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErreurWebflow'
+        '404':
+          description: Ressource inconnue, ou hors du périmètre du jeton. Code `resource_not_found`.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErreurWebflow'
+        '409':
+          description: 'Formulaires seulement : le site doit être republié pour que
+            la fonctionnalité soit disponible. Code `forms_require_republish`. Rien
+            côté client ne le résout.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErreurWebflow'
+        '429':
+          description: Limite de débit atteinte — 60 requêtes / minute au jeton. Code
+            `too_many_requests`, en-tête `Retry-After` (typiquement 60). Les en-têtes
+            `X-RateLimit-Limit` et `X-RateLimit-Remaining` sont présents sur TOUTES
+            les réponses.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErreurWebflow'
+        '500':
+          description: Panne injectée. Code `internal_error`.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErreurWebflow'
+        '503':
+          description: Panne transitoire injectée.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErreurWebflow'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /v2/sites/{site_id}/collections:
+    get:
+      tags:
+      - CMS
+      summary: Les collections d'un site — NON paginée, SANS les champs
+      operationId: collections_v2_sites__site_id__collections_get
+      parameters:
+      - name: site_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Site Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListeCollections'
+        '400':
+          description: 'Paramètre invalide : `limit` hors bornes (elle n''est PAS
+            rabotée), `offset` négatif ou illisible. Code `validation_error`.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErreurWebflow'
+        '401':
+          description: Jeton absent, invalide ou révoqué — les trois cas sont indistincts.
+            Code `not_authorized`. N'est PAS retentable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErreurWebflow'
+        '403':
+          description: Le jeton ne porte pas le scope requis. Code `missing_scopes`,
+            et le message NOMME les scopes manquants. N'est PAS retentable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErreurWebflow'
+        '404':
+          description: Ressource inconnue, ou hors du périmètre du jeton. Code `resource_not_found`.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErreurWebflow'
+        '409':
+          description: 'Formulaires seulement : le site doit être republié pour que
+            la fonctionnalité soit disponible. Code `forms_require_republish`. Rien
+            côté client ne le résout.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErreurWebflow'
+        '429':
+          description: Limite de débit atteinte — 60 requêtes / minute au jeton. Code
+            `too_many_requests`, en-tête `Retry-After` (typiquement 60). Les en-têtes
+            `X-RateLimit-Limit` et `X-RateLimit-Remaining` sont présents sur TOUTES
+            les réponses.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErreurWebflow'
+        '500':
+          description: Panne injectée. Code `internal_error`.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErreurWebflow'
+        '503':
+          description: Panne transitoire injectée.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErreurWebflow'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /v2/collections/{collection_id}:
+    get:
+      tags:
+      - CMS
+      summary: Une collection, AVEC ses champs
+      operationId: collection_v2_collections__collection_id__get
+      parameters:
+      - name: collection_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Collection Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Collection'
+        '400':
+          description: 'Paramètre invalide : `limit` hors bornes (elle n''est PAS
+            rabotée), `offset` négatif ou illisible. Code `validation_error`.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErreurWebflow'
+        '401':
+          description: Jeton absent, invalide ou révoqué — les trois cas sont indistincts.
+            Code `not_authorized`. N'est PAS retentable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErreurWebflow'
+        '403':
+          description: Le jeton ne porte pas le scope requis. Code `missing_scopes`,
+            et le message NOMME les scopes manquants. N'est PAS retentable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErreurWebflow'
+        '404':
+          description: Ressource inconnue, ou hors du périmètre du jeton. Code `resource_not_found`.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErreurWebflow'
+        '409':
+          description: 'Formulaires seulement : le site doit être republié pour que
+            la fonctionnalité soit disponible. Code `forms_require_republish`. Rien
+            côté client ne le résout.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErreurWebflow'
+        '429':
+          description: Limite de débit atteinte — 60 requêtes / minute au jeton. Code
+            `too_many_requests`, en-tête `Retry-After` (typiquement 60). Les en-têtes
+            `X-RateLimit-Limit` et `X-RateLimit-Remaining` sont présents sur TOUTES
+            les réponses.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErreurWebflow'
+        '500':
+          description: Panne injectée. Code `internal_error`.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErreurWebflow'
+        '503':
+          description: Panne transitoire injectée.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErreurWebflow'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /v2/collections/{collection_id}/items/live:
+    get:
+      tags:
+      - CMS
+      summary: Les éléments PUBLIÉS — ce que les visiteurs voient
+      operationId: list_items_live_v2_collections__collection_id__items_live_get
+      parameters:
+      - name: collection_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Collection Id
+      - name: offset
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 0
+        description: Décalage de pagination. Défaut 0. Un offset au-delà du total
+          rend une page vide.
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 100
+        description: Taille de page. Défaut 100, entre 1 et 100. Hors bornes → 400
+          `validation_error`.
+      - name: name
+        in: query
+        required: false
+        schema:
+          type: string
+        description: Filtre d'égalité EXACTE sur `fieldData.name`.
+      - name: slug
+        in: query
+        required: false
+        schema:
+          type: string
+        description: Filtre d'égalité EXACTE sur `fieldData.slug`.
+      - name: cmsLocaleId
+        in: query
+        required: false
+        schema:
+          type: string
+        description: La locale CMS des éléments demandés.
+      - name: sortBy
+        in: query
+        required: false
+        schema:
+          type: string
+          enum:
+          - createdOn
+          - lastPublished
+          - lastUpdated
+          - name
+          - slug
+        description: '`createdOn`, `lastPublished`, `lastUpdated`, `name` ou `slug`.'
+      - name: sortOrder
+        in: query
+        required: false
+        schema:
+          type: string
+          enum:
+          - asc
+          - desc
+        description: '`asc` ou `desc`.'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListeItems'
+        '400':
+          description: 'Paramètre invalide : `limit` hors bornes (elle n''est PAS
+            rabotée), `offset` négatif ou illisible. Code `validation_error`.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErreurWebflow'
+        '401':
+          description: Jeton absent, invalide ou révoqué — les trois cas sont indistincts.
+            Code `not_authorized`. N'est PAS retentable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErreurWebflow'
+        '403':
+          description: Le jeton ne porte pas le scope requis. Code `missing_scopes`,
+            et le message NOMME les scopes manquants. N'est PAS retentable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErreurWebflow'
+        '404':
+          description: Ressource inconnue, ou hors du périmètre du jeton. Code `resource_not_found`.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErreurWebflow'
+        '409':
+          description: 'Formulaires seulement : le site doit être republié pour que
+            la fonctionnalité soit disponible. Code `forms_require_republish`. Rien
+            côté client ne le résout.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErreurWebflow'
+        '429':
+          description: Limite de débit atteinte — 60 requêtes / minute au jeton. Code
+            `too_many_requests`, en-tête `Retry-After` (typiquement 60). Les en-têtes
+            `X-RateLimit-Limit` et `X-RateLimit-Remaining` sont présents sur TOUTES
+            les réponses.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErreurWebflow'
+        '500':
+          description: Panne injectée. Code `internal_error`.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErreurWebflow'
+        '503':
+          description: Panne transitoire injectée.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErreurWebflow'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /v2/collections/{collection_id}/items/live/{item_id}:
+    get:
+      tags:
+      - CMS
+      summary: Les éléments PUBLIÉS — ce que les visiteurs voient — un élément
+      operationId: get_item_live_v2_collections__collection_id__items_live__item_id__get
+      parameters:
+      - name: collection_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Collection Id
+      - name: item_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Item Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CollectionItem'
+        '400':
+          description: 'Paramètre invalide : `limit` hors bornes (elle n''est PAS
+            rabotée), `offset` négatif ou illisible. Code `validation_error`.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErreurWebflow'
+        '401':
+          description: Jeton absent, invalide ou révoqué — les trois cas sont indistincts.
+            Code `not_authorized`. N'est PAS retentable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErreurWebflow'
+        '403':
+          description: Le jeton ne porte pas le scope requis. Code `missing_scopes`,
+            et le message NOMME les scopes manquants. N'est PAS retentable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErreurWebflow'
+        '404':
+          description: Ressource inconnue, ou hors du périmètre du jeton. Code `resource_not_found`.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErreurWebflow'
+        '409':
+          description: 'Formulaires seulement : le site doit être republié pour que
+            la fonctionnalité soit disponible. Code `forms_require_republish`. Rien
+            côté client ne le résout.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErreurWebflow'
+        '429':
+          description: Limite de débit atteinte — 60 requêtes / minute au jeton. Code
+            `too_many_requests`, en-tête `Retry-After` (typiquement 60). Les en-têtes
+            `X-RateLimit-Limit` et `X-RateLimit-Remaining` sont présents sur TOUTES
+            les réponses.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErreurWebflow'
+        '500':
+          description: Panne injectée. Code `internal_error`.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErreurWebflow'
+        '503':
+          description: Panne transitoire injectée.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErreurWebflow'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /v2/collections/{collection_id}/items:
+    get:
+      tags:
+      - CMS
+      summary: Les éléments PRÉPARÉS (brouillons et archivés compris)
+      operationId: list_items_v2_collections__collection_id__items_get
+      parameters:
+      - name: collection_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Collection Id
+      - name: offset
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 0
+        description: Décalage de pagination. Défaut 0. Un offset au-delà du total
+          rend une page vide.
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 100
+        description: Taille de page. Défaut 100, entre 1 et 100. Hors bornes → 400
+          `validation_error`.
+      - name: name
+        in: query
+        required: false
+        schema:
+          type: string
+        description: Filtre d'égalité EXACTE sur `fieldData.name`.
+      - name: slug
+        in: query
+        required: false
+        schema:
+          type: string
+        description: Filtre d'égalité EXACTE sur `fieldData.slug`.
+      - name: cmsLocaleId
+        in: query
+        required: false
+        schema:
+          type: string
+        description: La locale CMS des éléments demandés.
+      - name: sortBy
+        in: query
+        required: false
+        schema:
+          type: string
+          enum:
+          - createdOn
+          - lastPublished
+          - lastUpdated
+          - name
+          - slug
+        description: '`createdOn`, `lastPublished`, `lastUpdated`, `name` ou `slug`.'
+      - name: sortOrder
+        in: query
+        required: false
+        schema:
+          type: string
+          enum:
+          - asc
+          - desc
+        description: '`asc` ou `desc`.'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListeItems'
+        '400':
+          description: 'Paramètre invalide : `limit` hors bornes (elle n''est PAS
+            rabotée), `offset` négatif ou illisible. Code `validation_error`.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErreurWebflow'
+        '401':
+          description: Jeton absent, invalide ou révoqué — les trois cas sont indistincts.
+            Code `not_authorized`. N'est PAS retentable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErreurWebflow'
+        '403':
+          description: Le jeton ne porte pas le scope requis. Code `missing_scopes`,
+            et le message NOMME les scopes manquants. N'est PAS retentable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErreurWebflow'
+        '404':
+          description: Ressource inconnue, ou hors du périmètre du jeton. Code `resource_not_found`.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErreurWebflow'
+        '409':
+          description: 'Formulaires seulement : le site doit être republié pour que
+            la fonctionnalité soit disponible. Code `forms_require_republish`. Rien
+            côté client ne le résout.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErreurWebflow'
+        '429':
+          description: Limite de débit atteinte — 60 requêtes / minute au jeton. Code
+            `too_many_requests`, en-tête `Retry-After` (typiquement 60). Les en-têtes
+            `X-RateLimit-Limit` et `X-RateLimit-Remaining` sont présents sur TOUTES
+            les réponses.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErreurWebflow'
+        '500':
+          description: Panne injectée. Code `internal_error`.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErreurWebflow'
+        '503':
+          description: Panne transitoire injectée.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErreurWebflow'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /v2/collections/{collection_id}/items/{item_id}:
+    get:
+      tags:
+      - CMS
+      summary: Les éléments PRÉPARÉS (brouillons et archivés compris) — un élément
+      operationId: get_item_v2_collections__collection_id__items__item_id__get
+      parameters:
+      - name: collection_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Collection Id
+      - name: item_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Item Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CollectionItem'
+        '400':
+          description: 'Paramètre invalide : `limit` hors bornes (elle n''est PAS
+            rabotée), `offset` négatif ou illisible. Code `validation_error`.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErreurWebflow'
+        '401':
+          description: Jeton absent, invalide ou révoqué — les trois cas sont indistincts.
+            Code `not_authorized`. N'est PAS retentable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErreurWebflow'
+        '403':
+          description: Le jeton ne porte pas le scope requis. Code `missing_scopes`,
+            et le message NOMME les scopes manquants. N'est PAS retentable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErreurWebflow'
+        '404':
+          description: Ressource inconnue, ou hors du périmètre du jeton. Code `resource_not_found`.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErreurWebflow'
+        '409':
+          description: 'Formulaires seulement : le site doit être republié pour que
+            la fonctionnalité soit disponible. Code `forms_require_republish`. Rien
+            côté client ne le résout.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErreurWebflow'
+        '429':
+          description: Limite de débit atteinte — 60 requêtes / minute au jeton. Code
+            `too_many_requests`, en-tête `Retry-After` (typiquement 60). Les en-têtes
+            `X-RateLimit-Limit` et `X-RateLimit-Remaining` sont présents sur TOUTES
+            les réponses.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErreurWebflow'
+        '500':
+          description: Panne injectée. Code `internal_error`.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErreurWebflow'
+        '503':
+          description: Panne transitoire injectée.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErreurWebflow'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /v2/sites/{site_id}/forms:
+    get:
+      tags:
+      - Forms
+      summary: Les formulaires d'un site
+      operationId: forms_v2_sites__site_id__forms_get
+      parameters:
+      - name: site_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Site Id
+      - name: offset
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 0
+        description: Décalage de pagination. Défaut 0. Un offset au-delà du total
+          rend une page vide.
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 100
+        description: Taille de page. Défaut 100, entre 1 et 100. Hors bornes → 400
+          `validation_error`.
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListeForms'
+        '400':
+          description: 'Paramètre invalide : `limit` hors bornes (elle n''est PAS
+            rabotée), `offset` négatif ou illisible. Code `validation_error`.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErreurWebflow'
+        '401':
+          description: Jeton absent, invalide ou révoqué — les trois cas sont indistincts.
+            Code `not_authorized`. N'est PAS retentable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErreurWebflow'
+        '403':
+          description: Le jeton ne porte pas le scope requis. Code `missing_scopes`,
+            et le message NOMME les scopes manquants. N'est PAS retentable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErreurWebflow'
+        '404':
+          description: Ressource inconnue, ou hors du périmètre du jeton. Code `resource_not_found`.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErreurWebflow'
+        '409':
+          description: 'Formulaires seulement : le site doit être republié pour que
+            la fonctionnalité soit disponible. Code `forms_require_republish`. Rien
+            côté client ne le résout.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErreurWebflow'
+        '429':
+          description: Limite de débit atteinte — 60 requêtes / minute au jeton. Code
+            `too_many_requests`, en-tête `Retry-After` (typiquement 60). Les en-têtes
+            `X-RateLimit-Limit` et `X-RateLimit-Remaining` sont présents sur TOUTES
+            les réponses.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErreurWebflow'
+        '500':
+          description: Panne injectée. Code `internal_error`.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErreurWebflow'
+        '503':
+          description: Panne transitoire injectée.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErreurWebflow'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /v2/forms/{form_id}:
+    get:
+      tags:
+      - Forms
+      summary: Un formulaire
+      operationId: form_v2_forms__form_id__get
+      parameters:
+      - name: form_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Form Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Form'
+        '400':
+          description: 'Paramètre invalide : `limit` hors bornes (elle n''est PAS
+            rabotée), `offset` négatif ou illisible. Code `validation_error`.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErreurWebflow'
+        '401':
+          description: Jeton absent, invalide ou révoqué — les trois cas sont indistincts.
+            Code `not_authorized`. N'est PAS retentable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErreurWebflow'
+        '403':
+          description: Le jeton ne porte pas le scope requis. Code `missing_scopes`,
+            et le message NOMME les scopes manquants. N'est PAS retentable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErreurWebflow'
+        '404':
+          description: Ressource inconnue, ou hors du périmètre du jeton. Code `resource_not_found`.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErreurWebflow'
+        '409':
+          description: 'Formulaires seulement : le site doit être republié pour que
+            la fonctionnalité soit disponible. Code `forms_require_republish`. Rien
+            côté client ne le résout.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErreurWebflow'
+        '429':
+          description: Limite de débit atteinte — 60 requêtes / minute au jeton. Code
+            `too_many_requests`, en-tête `Retry-After` (typiquement 60). Les en-têtes
+            `X-RateLimit-Limit` et `X-RateLimit-Remaining` sont présents sur TOUTES
+            les réponses.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErreurWebflow'
+        '500':
+          description: Panne injectée. Code `internal_error`.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErreurWebflow'
+        '503':
+          description: Panne transitoire injectée.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErreurWebflow'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /v2/forms/{form_id}/submissions:
+    get:
+      tags:
+      - Forms
+      summary: Les soumissions d'un formulaire — de la plus récente à la plus ancienne
+      operationId: submissions_v2_forms__form_id__submissions_get
+      parameters:
+      - name: form_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Form Id
+      - name: offset
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 0
+        description: Décalage de pagination. Défaut 0. Un offset au-delà du total
+          rend une page vide.
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 100
+        description: Taille de page. Défaut 100, entre 1 et 100. Hors bornes → 400
+          `validation_error`.
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListeFormSubmissions'
+        '400':
+          description: 'Paramètre invalide : `limit` hors bornes (elle n''est PAS
+            rabotée), `offset` négatif ou illisible. Code `validation_error`.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErreurWebflow'
+        '401':
+          description: Jeton absent, invalide ou révoqué — les trois cas sont indistincts.
+            Code `not_authorized`. N'est PAS retentable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErreurWebflow'
+        '403':
+          description: Le jeton ne porte pas le scope requis. Code `missing_scopes`,
+            et le message NOMME les scopes manquants. N'est PAS retentable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErreurWebflow'
+        '404':
+          description: Ressource inconnue, ou hors du périmètre du jeton. Code `resource_not_found`.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErreurWebflow'
+        '409':
+          description: 'Formulaires seulement : le site doit être republié pour que
+            la fonctionnalité soit disponible. Code `forms_require_republish`. Rien
+            côté client ne le résout.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErreurWebflow'
+        '429':
+          description: Limite de débit atteinte — 60 requêtes / minute au jeton. Code
+            `too_many_requests`, en-tête `Retry-After` (typiquement 60). Les en-têtes
+            `X-RateLimit-Limit` et `X-RateLimit-Remaining` sont présents sur TOUTES
+            les réponses.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErreurWebflow'
+        '500':
+          description: Panne injectée. Code `internal_error`.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErreurWebflow'
+        '503':
+          description: Panne transitoire injectée.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErreurWebflow'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /v2/sites/{site_id}/form_submissions:
+    get:
+      tags:
+      - Forms
+      summary: Toutes les soumissions d'un site — de la plus récente à la plus ancienne
+      operationId: site_submissions_v2_sites__site_id__form_submissions_get
+      parameters:
+      - name: site_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Site Id
+      - name: elementId
+        in: query
+        required: false
+        schema:
+          type: string
+        description: Ne garder que les soumissions d'un élément de formulaire (`formElementId`).
+      - name: offset
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 0
+        description: Décalage de pagination. Défaut 0. Un offset au-delà du total
+          rend une page vide.
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 100
+        description: Taille de page. Défaut 100, entre 1 et 100. Hors bornes → 400
+          `validation_error`.
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListeFormSubmissions'
+        '400':
+          description: 'Paramètre invalide : `limit` hors bornes (elle n''est PAS
+            rabotée), `offset` négatif ou illisible. Code `validation_error`.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErreurWebflow'
+        '401':
+          description: Jeton absent, invalide ou révoqué — les trois cas sont indistincts.
+            Code `not_authorized`. N'est PAS retentable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErreurWebflow'
+        '403':
+          description: Le jeton ne porte pas le scope requis. Code `missing_scopes`,
+            et le message NOMME les scopes manquants. N'est PAS retentable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErreurWebflow'
+        '404':
+          description: Ressource inconnue, ou hors du périmètre du jeton. Code `resource_not_found`.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErreurWebflow'
+        '409':
+          description: 'Formulaires seulement : le site doit être republié pour que
+            la fonctionnalité soit disponible. Code `forms_require_republish`. Rien
+            côté client ne le résout.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErreurWebflow'
+        '429':
+          description: Limite de débit atteinte — 60 requêtes / minute au jeton. Code
+            `too_many_requests`, en-tête `Retry-After` (typiquement 60). Les en-têtes
+            `X-RateLimit-Limit` et `X-RateLimit-Remaining` sont présents sur TOUTES
+            les réponses.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErreurWebflow'
+        '500':
+          description: Panne injectée. Code `internal_error`.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErreurWebflow'
+        '503':
+          description: Panne transitoire injectée.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErreurWebflow'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /v2/form_submissions/{form_submission_id}:
+    get:
+      tags:
+      - Forms
+      summary: Une soumission
+      operationId: submission_v2_form_submissions__form_submission_id__get
+      parameters:
+      - name: form_submission_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Form Submission Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FormSubmission'
+        '400':
+          description: 'Paramètre invalide : `limit` hors bornes (elle n''est PAS
+            rabotée), `offset` négatif ou illisible. Code `validation_error`.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErreurWebflow'
+        '401':
+          description: Jeton absent, invalide ou révoqué — les trois cas sont indistincts.
+            Code `not_authorized`. N'est PAS retentable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErreurWebflow'
+        '403':
+          description: Le jeton ne porte pas le scope requis. Code `missing_scopes`,
+            et le message NOMME les scopes manquants. N'est PAS retentable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErreurWebflow'
+        '404':
+          description: Ressource inconnue, ou hors du périmètre du jeton. Code `resource_not_found`.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErreurWebflow'
+        '409':
+          description: 'Formulaires seulement : le site doit être republié pour que
+            la fonctionnalité soit disponible. Code `forms_require_republish`. Rien
+            côté client ne le résout.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErreurWebflow'
+        '429':
+          description: Limite de débit atteinte — 60 requêtes / minute au jeton. Code
+            `too_many_requests`, en-tête `Retry-After` (typiquement 60). Les en-têtes
+            `X-RateLimit-Limit` et `X-RateLimit-Remaining` sont présents sur TOUTES
+            les réponses.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErreurWebflow'
+        '500':
+          description: Panne injectée. Code `internal_error`.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErreurWebflow'
+        '503':
+          description: Panne transitoire injectée.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErreurWebflow'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+components:
+  schemas:
+    Collection:
+      properties:
+        id:
+          type: string
+          title: Id
+        displayName:
+          type: string
+          title: Displayname
+        singularName:
+          type: string
+          title: Singularname
+        slug:
+          type: string
+          title: Slug
+        createdOn:
+          type: string
+          title: Createdon
+        lastUpdated:
+          type: string
+          title: Lastupdated
+        fields:
+          items:
+            $ref: '#/components/schemas/CollectionField'
+          type: array
+          title: Fields
+      additionalProperties: true
+      type: object
+      required:
+      - id
+      - displayName
+      - singularName
+      - slug
+      - createdOn
+      - lastUpdated
+      - fields
+      title: Collection
+      description: '`GET /collections/{id}` — AVEC `fields`. La liste
+
+        `/sites/{id}/collections`, elle, ne les porte PAS : un second appel par
+
+        collection est nécessaire pour connaître le schéma des éléments.'
+    CollectionField:
+      properties:
+        id:
+          type: string
+          title: Id
+        isRequired:
+          type: boolean
+          title: Isrequired
+        isEditable:
+          type: boolean
+          title: Iseditable
+        type:
+          type: string
+          title: Type
+          description: Color, DateTime, Email, ExtFileRef, File, Image, Link, MultiImage,
+            MultiReference, Number, Option, Phone, PlainText, Reference, RichText,
+            Switch, VideoLink.
+        displayName:
+          type: string
+          title: Displayname
+        slug:
+          type: string
+          title: Slug
+        helpText:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Helptext
+        validations:
+          anyOf:
+          - additionalProperties: true
+            type: object
+          - type: 'null'
+          title: Validations
+      additionalProperties: true
+      type: object
+      required:
+      - id
+      - isRequired
+      - isEditable
+      - type
+      - displayName
+      - slug
+      title: CollectionField
+    CollectionItem:
+      properties:
+        id:
+          type: string
+          title: Id
+        cmsLocaleId:
+          type: string
+          title: Cmslocaleid
+        lastPublished:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Lastpublished
+          description: '`null` tant que l''élément n''a jamais été publié.'
+        lastUpdated:
+          type: string
+          title: Lastupdated
+        createdOn:
+          type: string
+          title: Createdon
+        isArchived:
+          type: boolean
+          title: Isarchived
+          default: false
+        isDraft:
+          type: boolean
+          title: Isdraft
+          default: false
+        fieldData:
+          additionalProperties: true
+          type: object
+          title: Fielddata
+      additionalProperties: true
+      type: object
+      required:
+      - id
+      - cmsLocaleId
+      - lastUpdated
+      - createdOn
+      - fieldData
+      title: CollectionItem
+      description: 'Un élément de collection.
+
+
+        `fieldData` est LIBRE : ses clés sont les `slug` des champs de la
+
+        collection, et seuls `name` et `slug` sont garantis. Un champ `Reference`
+
+        y vaut l''ID de l''élément visé, un `Option` l''ID de l''option, un `Image`
+
+        un objet `{fileId, url, alt}`. Le schéma se lit dans la collection, pas
+
+        dans l''élément.'
+    CollectionResume:
+      properties:
+        id:
+          type: string
+          title: Id
+        displayName:
+          type: string
+          title: Displayname
+        singularName:
+          type: string
+          title: Singularname
+        slug:
+          type: string
+          title: Slug
+        createdOn:
+          type: string
+          title: Createdon
+        lastUpdated:
+          type: string
+          title: Lastupdated
+      additionalProperties: true
+      type: object
+      required:
+      - id
+      - displayName
+      - singularName
+      - slug
+      - createdOn
+      - lastUpdated
+      title: CollectionResume
+      description: L'élément de `/sites/{id}/collections` — sans `fields`.
+    CustomDomain:
+      properties:
+        id:
+          type: string
+          title: Id
+        url:
+          type: string
+          title: Url
+          description: Le nom de domaine, sans schéma.
+        lastPublished:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Lastpublished
+      additionalProperties: true
+      type: object
+      required:
+      - id
+      - url
+      title: CustomDomain
+    ErreurWebflow:
+      properties:
+        message:
+          type: string
+          title: Message
+          description: Message lisible.
+        code:
+          type: string
+          title: Code
+          description: 'Code machine : `not_authorized`, `missing_scopes`, `resource_not_found`,
+            `forms_require_republish`, `too_many_requests`, `validation_error`, `internal_error`…'
+        externalReference:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Externalreference
+          description: Lien vers plus d'information.
+        details:
+          items: {}
+          type: array
+          title: Details
+          description: Détails supplémentaires.
+      additionalProperties: true
+      type: object
+      required:
+      - message
+      - code
+      title: ErreurWebflow
+      description: 'Le corps d''erreur — quatre clés, sur TOUTE la surface, 429 compris.
+
+
+        C''est ce qui distingue Webflow de Pennylane : ici le 429 est du JSON
+
+        comme les autres. Le piège n''est pas la forme, c''est `Retry-After` : il
+
+        vaut typiquement 60 secondes, et un client qui l''ignore rejoue dans la
+
+        même minute et se fait limiter à nouveau.'
+    Form:
+      properties:
+        id:
+          type: string
+          title: Id
+        displayName:
+          type: string
+          title: Displayname
+        siteId:
+          type: string
+          title: Siteid
+        siteDomainId:
+          type: string
+          title: Sitedomainid
+          x-webflow-confidence: unverified
+          x-webflow-note: attesté par l'exemple de la référence, mais rien ne dit
+            à quel domaine il correspond quand le site en a plusieurs
+        pageId:
+          type: string
+          title: Pageid
+        pageName:
+          type: string
+          title: Pagename
+        formElementId:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Formelementid
+        workspaceId:
+          type: string
+          title: Workspaceid
+        createdOn:
+          type: string
+          title: Createdon
+        lastUpdated:
+          type: string
+          title: Lastupdated
+        fields:
+          additionalProperties:
+            $ref: '#/components/schemas/FormField'
+          type: object
+          title: Fields
+        responseSettings:
+          $ref: '#/components/schemas/ResponseSettings'
+      additionalProperties: true
+      type: object
+      required:
+      - id
+      - displayName
+      - siteId
+      - siteDomainId
+      - pageId
+      - pageName
+      - workspaceId
+      - createdOn
+      - lastUpdated
+      - fields
+      - responseSettings
+      title: Form
+      description: 'Un formulaire. `fields` est un OBJET clé par identifiant de champ,
+        pas
+
+        un tableau — et `formResponse` d''une soumission est clé par
+
+        `displayName`, pas par identifiant. Le rapprochement se fait par le nom.'
+    FormField:
+      properties:
+        displayName:
+          type: string
+          title: Displayname
+        type:
+          type: string
+          title: Type
+          description: Plain, Email, Password, Phone ou Number.
+        placeholder:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Placeholder
+        userVisible:
+          type: boolean
+          title: Uservisible
+          default: true
+      additionalProperties: true
+      type: object
+      required:
+      - displayName
+      - type
+      title: FormField
+    FormSubmission:
+      properties:
+        id:
+          type: string
+          title: Id
+        displayName:
+          type: string
+          title: Displayname
+          description: Le nom du FORMULAIRE, pas du visiteur.
+        siteId:
+          type: string
+          title: Siteid
+        workspaceId:
+          type: string
+          title: Workspaceid
+        dateSubmitted:
+          type: string
+          title: Datesubmitted
+        formResponse:
+          additionalProperties: true
+          type: object
+          title: Formresponse
+        localeId:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Localeid
+        formId:
+          type: string
+          title: Formid
+      additionalProperties: true
+      type: object
+      required:
+      - id
+      - displayName
+      - siteId
+      - workspaceId
+      - dateSubmitted
+      - formResponse
+      - formId
+      title: FormSubmission
+      description: 'Une soumission.
+
+
+        ┌─ `formResponse` EST LIBRE ET NOMINATIF ────────────────────────────────┐
+
+        │ Ses clés sont les `displayName` des champs du formulaire (« Prénom »,  │
+
+        │ « Email », « Message »), ses valeurs ce que le visiteur a tapé. C''est │
+
+        │ de la donnée personnelle de PROSPECT, finalité distincte : un          │
+
+        │ consommateur analytique ne doit en retenir que ce qui compte —        │
+
+        │ quand, sur quel formulaire, depuis quelle locale — et rien de ce qui  │
+
+        │ identifie.                                                              │
+
+        └────────────────────────────────────────────────────────────────────────┘
+
+
+        `localeId` est `null` pour une soumission depuis la locale PRIMAIRE (ou
+
+        un site non localisé), et l''ID de locale sinon : `null` n''est pas
+
+        « inconnu », c''est « la langue par défaut ».'
+    HTTPValidationError:
+      properties:
+        detail:
+          items:
+            $ref: '#/components/schemas/ValidationError'
+          type: array
+          title: Detail
+      type: object
+      title: HTTPValidationError
+    ListeCollections:
+      properties:
+        collections:
+          items:
+            $ref: '#/components/schemas/CollectionResume'
+          type: array
+          title: Collections
+      additionalProperties: true
+      type: object
+      required:
+      - collections
+      title: ListeCollections
+      description: '`GET /sites/{id}/collections` — non paginée.'
+    ListeCustomDomains:
+      properties:
+        customDomains:
+          items:
+            $ref: '#/components/schemas/CustomDomain'
+          type: array
+          title: Customdomains
+      additionalProperties: true
+      type: object
+      required:
+      - customDomains
+      title: ListeCustomDomains
+      description: '`GET /sites/{id}/custom_domains` — non paginée non plus.'
+    ListeFormSubmissions:
+      properties:
+        formSubmissions:
+          items:
+            $ref: '#/components/schemas/FormSubmission'
+          type: array
+          title: Formsubmissions
+          x-webflow-confidence: unverified
+          x-webflow-note: l'ordre de tri (dateSubmitted décroissant) n'est pas documenté
+            ; il est reproduit tel qu'observé dans les exemples et l'interface
+        pagination:
+          $ref: '#/components/schemas/Pagination'
+      additionalProperties: true
+      type: object
+      required:
+      - formSubmissions
+      - pagination
+      title: ListeFormSubmissions
+      description: Servie de la plus récente à la plus ancienne — cf. UNVERIFIED-FIELDS.
+    ListeForms:
+      properties:
+        forms:
+          items:
+            $ref: '#/components/schemas/Form'
+          type: array
+          title: Forms
+        pagination:
+          $ref: '#/components/schemas/Pagination'
+      additionalProperties: true
+      type: object
+      required:
+      - forms
+      - pagination
+      title: ListeForms
+    ListeItems:
+      properties:
+        items:
+          items:
+            $ref: '#/components/schemas/CollectionItem'
+          type: array
+          title: Items
+        pagination:
+          $ref: '#/components/schemas/Pagination'
+      additionalProperties: true
+      type: object
+      required:
+      - items
+      - pagination
+      title: ListeItems
+      description: '`/collections/{id}/items` (préparés, brouillons et archivés COMPRIS)
+        ou
+
+        `/collections/{id}/items/live` (publiés seulement).'
+    ListePages:
+      properties:
+        pages:
+          items:
+            $ref: '#/components/schemas/Page'
+          type: array
+          title: Pages
+        pagination:
+          $ref: '#/components/schemas/Pagination'
+      additionalProperties: true
+      type: object
+      required:
+      - pages
+      - pagination
+      title: ListePages
+    ListeSites:
+      properties:
+        sites:
+          items:
+            $ref: '#/components/schemas/Site'
+          type: array
+          title: Sites
+      additionalProperties: true
+      type: object
+      required:
+      - sites
+      title: ListeSites
+      description: '`GET /sites` — PAS de pagination : la liste entière, sans objet
+
+        `pagination`. Un consommateur qui lit `body["pagination"]` sans garde
+
+        lève ici, sur la première route qu''il appelle.'
+    Locale:
+      properties:
+        id:
+          type: string
+          title: Id
+        cmsLocaleId:
+          type: string
+          title: Cmslocaleid
+        enabled:
+          type: boolean
+          title: Enabled
+        displayName:
+          type: string
+          title: Displayname
+        displayImageId:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Displayimageid
+        redirect:
+          type: boolean
+          title: Redirect
+        subdirectory:
+          type: string
+          title: Subdirectory
+          description: '`""` pour la locale primaire, `"en"` sinon.'
+        tag:
+          type: string
+          title: Tag
+          description: '`fr-FR`, `en-US`…'
+      additionalProperties: true
+      type: object
+      required:
+      - id
+      - cmsLocaleId
+      - enabled
+      - displayName
+      - redirect
+      - subdirectory
+      - tag
+      title: Locale
+    Locales:
+      properties:
+        primary:
+          $ref: '#/components/schemas/Locale'
+        secondary:
+          items:
+            $ref: '#/components/schemas/Locale'
+          type: array
+          title: Secondary
+      additionalProperties: true
+      type: object
+      required:
+      - primary
+      - secondary
+      title: Locales
+    OpenGraph:
+      properties:
+        title:
+          type: string
+          title: Title
+        titleCopied:
+          type: boolean
+          title: Titlecopied
+        description:
+          type: string
+          title: Description
+        descriptionCopied:
+          type: boolean
+          title: Descriptioncopied
+      additionalProperties: true
+      type: object
+      required:
+      - title
+      - titleCopied
+      - description
+      - descriptionCopied
+      title: OpenGraph
+    Page:
+      properties:
+        id:
+          type: string
+          title: Id
+        siteId:
+          type: string
+          title: Siteid
+        title:
+          type: string
+          title: Title
+        slug:
+          type: string
+          title: Slug
+        parentId:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Parentid
+          description: Le dossier parent ; `null` à la racine. Les dossiers ne sont
+            PAS servis.
+        collectionId:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Collectionid
+          description: Renseigné sur une page GABARIT de collection, `null` sinon.
+        createdOn:
+          type: string
+          title: Createdon
+        lastUpdated:
+          type: string
+          title: Lastupdated
+        archived:
+          type: boolean
+          title: Archived
+          default: false
+        draft:
+          type: boolean
+          title: Draft
+          default: false
+        canBranch:
+          type: boolean
+          title: Canbranch
+          default: false
+        isBranch:
+          type: boolean
+          title: Isbranch
+          default: false
+        branchId:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Branchid
+        seo:
+          $ref: '#/components/schemas/Seo'
+        openGraph:
+          $ref: '#/components/schemas/OpenGraph'
+        localeId:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Localeid
+          description: La locale de cette variante de la page.
+        publishedPath:
+          type: string
+          title: Publishedpath
+          description: Chemin relatif publié, préfixé du sous-répertoire de locale.
+          x-webflow-confidence: unverified
+          x-webflow-note: la forme du chemin d'une page GABARIT de collection (`/blog/detail_article`)
+            est plausible, pas attestée
+      additionalProperties: true
+      type: object
+      required:
+      - id
+      - siteId
+      - title
+      - slug
+      - createdOn
+      - lastUpdated
+      - seo
+      - openGraph
+      - publishedPath
+      title: Page
+    Pagination:
+      properties:
+        limit:
+          type: integer
+          title: Limit
+          description: La taille de page appliquée (défaut 100).
+        offset:
+          type: integer
+          title: Offset
+          description: Le décalage appliqué (défaut 0).
+        total:
+          type: integer
+          title: Total
+          description: Le nombre TOTAL d'éléments, toutes pages confondues.
+      additionalProperties: false
+      type: object
+      required:
+      - limit
+      - offset
+      - total
+      title: Pagination
+      description: '`{"limit", "offset", "total"}` — l''objet de pagination.
+
+
+        `total` est le nombre d''éléments de la liste ENTIÈRE. C''est ce qui permet
+
+        de savoir quand s''arrêter (`offset + limit >= total`), et c''est ce qui
+
+        trompe quand la liste bouge entre deux appels : une soumission arrivée en
+
+        tête décale tout d''un cran, et la dernière ligne de la page N revient en
+
+        tête de la page N+1. Ni erreur, ni avertissement — un doublon.'
+    ResponseSettings:
+      properties:
+        redirectUrl:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Redirecturl
+        redirectMethod:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Redirectmethod
+        redirectAction:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Redirectaction
+        sendEmailConfirmation:
+          type: boolean
+          title: Sendemailconfirmation
+          default: false
+      additionalProperties: true
+      type: object
+      title: ResponseSettings
+    Seo:
+      properties:
+        title:
+          type: string
+          title: Title
+        description:
+          type: string
+          title: Description
+      additionalProperties: true
+      type: object
+      required:
+      - title
+      - description
+      title: Seo
+    Site:
+      properties:
+        id:
+          type: string
+          title: Id
+        workspaceId:
+          type: string
+          title: Workspaceid
+        createdOn:
+          type: string
+          title: Createdon
+        displayName:
+          type: string
+          title: Displayname
+        shortName:
+          type: string
+          title: Shortname
+        lastPublished:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Lastpublished
+        lastUpdated:
+          type: string
+          title: Lastupdated
+        previewUrl:
+          type: string
+          title: Previewurl
+        timeZone:
+          type: string
+          title: Timezone
+        parentFolderId:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Parentfolderid
+        customDomains:
+          items:
+            $ref: '#/components/schemas/CustomDomain'
+          type: array
+          title: Customdomains
+        locales:
+          $ref: '#/components/schemas/Locales'
+        dataCollectionEnabled:
+          type: boolean
+          title: Datacollectionenabled
+        dataCollectionType:
+          type: string
+          title: Datacollectiontype
+          description: '`always`, `optOut` ou `disabled`.'
+      additionalProperties: true
+      type: object
+      required:
+      - id
+      - workspaceId
+      - createdOn
+      - displayName
+      - shortName
+      - lastUpdated
+      - previewUrl
+      - timeZone
+      - customDomains
+      - locales
+      - dataCollectionEnabled
+      - dataCollectionType
+      title: Site
+    TokenIntrospection:
+      properties:
+        authorization:
+          additionalProperties: true
+          type: object
+          title: Authorization
+        application:
+          additionalProperties: true
+          type: object
+          title: Application
+      additionalProperties: true
+      type: object
+      required:
+      - authorization
+      - application
+      title: TokenIntrospection
+      description: '`GET /token/introspect` — ce que le jeton peut faire, et sur quoi.
+
+
+        `authorization.scope` est une chaîne de scopes SÉPARÉS PAR DES VIRGULES,
+
+        pas un tableau ; `authorizedTo.siteIds` dit quels sites le jeton voit —
+
+        un `/sites` vide n''est pas une panne, c''est un jeton autorisé sur rien.'
+    Utilisateur:
+      properties:
+        id:
+          type: string
+          title: Id
+        email:
+          type: string
+          title: Email
+        firstName:
+          type: string
+          title: Firstname
+        lastName:
+          type: string
+          title: Lastname
+      additionalProperties: true
+      type: object
+      required:
+      - id
+      - email
+      - firstName
+      - lastName
+      title: Utilisateur
+      description: '`GET /token/authorized_by` — qui a autorisé ce jeton.'
+    ValidationError:
+      properties:
+        loc:
+          items:
+            anyOf:
+            - type: string
+            - type: integer
+          type: array
+          title: Location
+        msg:
+          type: string
+          title: Message
+        type:
+          type: string
+          title: Error Type
+        input:
+          title: Input
+        ctx:
+          type: object
+          title: Context
+      type: object
+      required:
+      - loc
+      - msg
+      - type
+      title: ValidationError

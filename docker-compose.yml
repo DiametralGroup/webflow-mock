@@ -1,0 +1,34 @@
+# Local deployment in one command:
+#
+#     docker compose up --build
+#
+# The mock answers on http://localhost:8015 (8010 boondmanager, 8011 entra,
+# 8012 linkedin, 8013 ga and 8014 pennylane are taken by the sibling mocks of
+# the insights360 ecosystem — the port map is shared, do not reuse one):
+#
+#     curl http://localhost:8015/health
+#     curl -H "Authorization: Bearer mock-webflow-token" \
+#          http://localhost:8015/v2/sites
+#
+# `depends_on: condition: service_healthy` works on the consumer side: the
+# healthcheck ships INSIDE the image.
+services:
+  webflow-mock:
+    # Local build by default; swap `build:` for the published image if preferred:
+    #   image: ghcr.io/littlebigcode/webflow-mock:latest
+    build: .
+    image: webflow-mock:0.1.0
+    ports:
+      - "8015:8000"
+    environment:
+      # Failure-injection, virtual clock and scope control plane — essential
+      # outside the process.
+      WEBFLOW_MOCK_ADMIN_ENABLED: "true"
+      # Site life advances one event per minute (incremental extraction).
+      # Set to "false" for a byte-stable dataset — which is what a consumer's
+      # idempotence gate needs.
+      WEBFLOW_MOCK_EVOLUTION_ENABLED: "true"
+      WEBFLOW_MOCK_EVOLUTION_INTERVAL: "60"
+      # Dataset seed — the same seed produces the same world, and it is the
+      # SAME seed as the five sibling mocks.
+      WEBFLOW_MOCK_SEED: "42"
