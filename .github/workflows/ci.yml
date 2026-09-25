@@ -71,9 +71,15 @@ jobs:
           curl -s -D /tmp/h -H 'Authorization: Bearer mock-webflow-token' \
             "$BASE/sites/$SITE/pages?limit=2" | grep -q '"pagination":{"limit":2,"offset":0,"total":'
           grep -qi '^x-ratelimit-limit:' /tmp/h
-          # `limit` hors bornes : 400, jamais un rabotage silencieux.
+          # `limit` au-delà du plafond : RABOTÉ en silence à 100 (sondé le
+          # 2026-09-25) ; nul ou illisible : 400 `validation_error`.
+          curl -s -H 'Authorization: Bearer mock-webflow-token' \
+            "$BASE/sites/$SITE/pages?limit=9999" | grep -q '"pagination":{"limit":100,'
           test "$(curl -s -o /dev/null -w '%{http_code}' \
-            -H 'Authorization: Bearer mock-webflow-token' "$BASE/sites/$SITE/pages?limit=9999")" = "400"
+            -H 'Authorization: Bearer mock-webflow-token' "$BASE/sites/$SITE/pages?limit=0")" = "400"
+          # Un site token n'a pas d'introspection : 500, jamais un 200 menteur.
+          test "$(curl -s -o /dev/null -w '%{http_code}' \
+            -H 'Authorization: Bearer mock-webflow-token' "$BASE/token/introspect")" = "500"
           docker stop smoke
       - name: Push
         uses: docker/build-push-action@v6
