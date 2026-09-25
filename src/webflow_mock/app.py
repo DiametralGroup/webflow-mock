@@ -36,6 +36,7 @@ from .errors import (
     entetes_debit,
     erreur,
     erreur_debit,
+    erreur_interne,
     erreur_introuvable,
     erreur_jeton,
     erreur_republication,
@@ -66,7 +67,7 @@ from .settings import settings
 from .state import state
 
 PREFIXE = "/v2"
-VERSION = "0.1.0"
+VERSION = "0.2.0"
 
 #: Les requêtes de la fenêtre glissante — pour `X-RateLimit-Remaining`.
 _fenetre: deque[float] = deque()
@@ -292,15 +293,23 @@ def authorized_by(request: Request) -> Any:
     summary="Ce que le jeton peut faire, et sur quoi",
 )
 def introspect(request: Request) -> Any:
-    """Le test de fumée d'un connecteur : quels scopes, quels sites ?
+    """Quels scopes, quels sites — pour un jeton d'APPLICATION seulement.
 
-    Aucun scope requis — c'est justement lui qui sert à découvrir les scopes
-    dont on dispose. Un connecteur doit l'appeler AVANT d'ouvrir son pipeline :
-    échouer sur une authentification vaut mieux qu'un run à moitié fait.
+    Aucun scope requis. Mais un site token y reçoit 500 (cf. ci-dessous) : le
+    test de fumée d'un connecteur à site token est `/sites`, pas cet endpoint.
     """
     chemin = f"{PREFIXE}/token/introspect"
     if (refus := _prelude(request, chemin, None)) is not None:
         return refus
+    if settings.token_kind == "site":
+        # ┌─ UN SITE TOKEN N'A PAS D'INTROSPECTION ─────────────────────────────┐
+        # │ Sondé le 2026-09-25 : 500 `internal_error`, « An Internal Error     │
+        # │ Occurred ». La référence réserve l'endpoint aux applications Data   │
+        # │ Client. Un connecteur qui en fait son test de fumée échoue AVANT    │
+        # │ d'avoir rien lu — avec un jeton pourtant valide. `authorized_by`   │
+        # │ et `/sites` répondent, eux.                                          │
+        # └──────────────────────────────────────────────────────────────────────┘
+        return erreur_interne()
     corps = state.dataset["introspection"]
     autorisation = {**corps["authorization"], "scope": ",".join(sorted(settings.scopes))}
     return _ok({"authorization": autorisation, "application": corps["application"]})

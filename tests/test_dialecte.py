@@ -24,7 +24,7 @@ def test_sans_jeton_c_est_401_a_l_enveloppe_webflow(client):
     reponse = client.get(f"{BASE}/sites")
     assert reponse.status_code == 401
     assert reponse.json() == {
-        "message": "Unauthorized",
+        "message": "Request not authorized",
         "code": "not_authorized",
         "externalReference": None,
         "details": [],
@@ -81,9 +81,23 @@ def test_un_scope_write_couvre_le_read(client, site_id):
     assert client.get(f"{BASE}/sites/{site_id}/pages", headers=H).status_code == 200
 
 
-def test_introspect_ne_demande_aucun_scope(client):
-    """C'est LUI qui sert à découvrir les scopes : les exiger serait circulaire.
-    Et `scope` est une CHAÎNE séparée par des virgules, pas un tableau."""
+def test_introspect_rend_500_a_un_site_token(client):
+    """Sondé le 2026-09-25 : un site token n'a pas d'introspection — 500
+    `internal_error`, avec un jeton pourtant valide. Le test de fumée d'un
+    connecteur est `/sites`, pas cet endpoint."""
+    reponse = client.get(f"{BASE}/token/introspect", headers=H)
+    assert reponse.status_code == 500
+    assert reponse.json()["code"] == "internal_error"
+    assert reponse.json()["message"] == "An Internal Error Occurred"
+
+
+def test_introspect_repond_a_un_jeton_d_application_sans_scope(client, monkeypatch):
+    """C'est LUI qui sert à découvrir les scopes d'une application : les
+    exiger serait circulaire. Et `scope` est une CHAÎNE séparée par des
+    virgules, pas un tableau."""
+    import webflow_mock as mock
+
+    monkeypatch.setattr(mock.settings, "token_kind", "oauth")
     client.post("/__admin/scopes", headers=ADMIN, json={"scopes": ["cms:read"]})
     reponse = client.get(f"{BASE}/token/introspect", headers=H)
     assert reponse.status_code == 200
@@ -204,8 +218,12 @@ def test_les_champs_d_un_formulaire_sont_un_objet_et_la_reponse_est_clee_par_nom
     soumission = client.get(f"{BASE}/forms/{form_id}/submissions?limit=1", headers=H).json()[
         "formSubmissions"
     ][0]
-    assert set(soumission["formResponse"]) <= noms
+    # Hors les `utm_*` : le site les pousse dans le formulaire sans qu'ils
+    # soient des champs déclarés (observé le 2026-09-25).
+    assert {k for k in soumission["formResponse"] if not k.startswith("utm_")} <= noms
     assert soumission["displayName"] == formulaire["displayName"]
+    assert soumission["pageId"] == formulaire["pageId"]
+    assert "publishedPath" in soumission and soumission["schema"] == []
 
 
 def test_locale_id_est_null_pour_la_locale_primaire(client, site_id):

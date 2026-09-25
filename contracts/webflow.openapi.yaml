@@ -5,7 +5,7 @@ info:
     de « Boréal Conseil ». Pagination `offset`/`limit`/`total`, identifiants en chaînes,
     erreurs `{message, code, externalReference, details}`, scopes granulaires, soumissions
     de formulaires nominatives.
-  version: 0.1.0
+  version: 0.2.0
 servers:
 - url: https://api.webflow.com
 paths:
@@ -83,16 +83,12 @@ paths:
       tags:
       - Token
       summary: Ce que le jeton peut faire, et sur quoi
-      description: 'Le test de fumée d''un connecteur : quels scopes, quels sites
-        ?
+      description: 'Quels scopes, quels sites — pour un jeton d''APPLICATION seulement.
 
 
-        Aucun scope requis — c''est justement lui qui sert à découvrir les scopes
+        Aucun scope requis. Mais un site token y reçoit 500 (cf. ci-dessous) : le
 
-        dont on dispose. Un connecteur doit l''appeler AVANT d''ouvrir son pipeline
-        :
-
-        échouer sur une authentification vaut mieux qu''un run à moitié fait.'
+        test de fumée d''un connecteur à site token est `/sites`, pas cet endpoint.'
       operationId: introspect_v2_token_introspect_get
       responses:
         '200':
@@ -1852,6 +1848,13 @@ components:
           - type: string
           - type: 'null'
           title: Lastpublished
+        fullSiteCompiledAt:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Fullsitecompiledat
+          x-webflow-confidence: unverified
+          x-webflow-note: observé le 2026-09-25 sur un site réel, absent de la référence
       additionalProperties: true
       type: object
       required:
@@ -1924,6 +1927,19 @@ components:
           - type: string
           - type: 'null'
           title: Formelementid
+        componentId:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Componentid
+          x-webflow-confidence: unverified
+          x-webflow-note: 'observé le 2026-09-25 : le composant réutilisable qui porte
+            le formulaire'
+        componentElementId:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Componentelementid
         workspaceId:
           type: string
           title: Workspaceid
@@ -2007,6 +2023,9 @@ components:
           additionalProperties: true
           type: object
           title: Formresponse
+          description: Les réponses, clé par nom de champ affiché. Les paramètres
+            `utm_*` que le site pousse dans le formulaire y arrivent comme des champs
+            ordinaires.
         localeId:
           anyOf:
           - type: string
@@ -2015,6 +2034,33 @@ components:
         formId:
           type: string
           title: Formid
+        formElementId:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Formelementid
+        componentElementId:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Componentelementid
+        pageId:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Pageid
+          x-webflow-confidence: unverified
+          x-webflow-note: 'observé le 2026-09-25 : la page depuis laquelle la soumission
+            a été faite'
+        publishedPath:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Publishedpath
+        schema:
+          items: {}
+          type: array
+          title: Schema
       additionalProperties: true
       type: object
       required:
@@ -2093,9 +2139,6 @@ components:
             $ref: '#/components/schemas/FormSubmission'
           type: array
           title: Formsubmissions
-          x-webflow-confidence: unverified
-          x-webflow-note: l'ordre de tri (dateSubmitted décroissant) n'est pas documenté
-            ; il est reproduit tel qu'observé dans les exemples et l'interface
         pagination:
           $ref: '#/components/schemas/Pagination'
       additionalProperties: true
@@ -2104,7 +2147,10 @@ components:
       - formSubmissions
       - pagination
       title: ListeFormSubmissions
-      description: Servie de la plus récente à la plus ancienne — cf. UNVERIFIED-FIELDS.
+      description: 'Servie de la plus récente à la plus ancienne — non documenté,
+        mais
+
+        observé sur un site réel le 2026-09-25.'
     ListeForms:
       properties:
         forms:
@@ -2303,6 +2349,13 @@ components:
           - type: string
           - type: 'null'
           title: Branchid
+        shouldPublish:
+          anyOf:
+          - type: boolean
+          - type: 'null'
+          title: Shouldpublish
+          x-webflow-confidence: unverified
+          x-webflow-note: observé le 2026-09-25 sur un site réel, absent de la référence
         seo:
           $ref: '#/components/schemas/Seo'
         openGraph:
@@ -2429,6 +2482,13 @@ components:
         lastUpdated:
           type: string
           title: Lastupdated
+        fullSiteCompiledAt:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Fullsitecompiledat
+          x-webflow-confidence: unverified
+          x-webflow-note: observé le 2026-09-25 sur un site réel, absent de la référence
         previewUrl:
           type: string
           title: Previewurl

@@ -12,8 +12,10 @@ consultancy that already populates `boondmanager-mock`, `entra-mock`,
 
 The shapes are not written from memory. Every page of Webflow's reference is
 available as Markdown and declares its response fields, types, nullability and
-enumerations; those pages were downloaded and this mock reproduces them. The
-method is replayable — see [`docs/EXTRACTION.md`](docs/EXTRACTION.md).
+enumerations; those pages were downloaded and this mock reproduces them — then
+**probed against a real site on 2026-09-25**, which settled what the reference
+leaves open (see [`docs/UNVERIFIED-FIELDS.md`](docs/UNVERIFIED-FIELDS.md)).
+The method is replayable — see [`docs/EXTRACTION.md`](docs/EXTRACTION.md).
 
 ## Start in one command
 
@@ -55,10 +57,15 @@ curl -H "Authorization: Bearer mock-webflow-token" http://localhost:8015/v2/site
 curl -H "Authorization: Bearer mock-webflow-token" http://localhost:8015/v2/token/introspect
 ```
 
-Heads-up, exactly as on the real API: **401** (`not_authorized`) means the
-token is missing, invalid or revoked — the three are indistinguishable.
-**403** (`missing_scopes`) means the token is fine but lacks a scope, and the
-message *names the missing scopes*. Neither is retryable.
+Heads-up, exactly as on the real API: **401** (`not_authorized`, "Request not
+authorized") means the token is missing, invalid or revoked — the three are
+indistinguishable. **403** (`missing_scopes`) means the token is fine but lacks
+a scope, and the message *names the missing scopes*. Neither is retryable.
+
+And one that costs a first production run: **`/token/introspect` answers 500
+to a site token** (probed 2026-09-25 — the endpoint is for Data Client apps).
+The smoke test of a site-token connector is `/sites`, not introspect. Set
+`WEBFLOW_MOCK_TOKEN_KIND=oauth` to get the 200 an application token gets.
 
 ## Two modes, both maintained
 
@@ -104,7 +111,7 @@ different from the five sibling mocks:
 | | Webflow | ...vs the neighbours |
 |---|---|---|
 | Auth | static `Authorization: Bearer` site token + **granular scopes** (`forms:read`…) | static JWT (Boond), client_credentials (Entra), RS256 SA (GA), bearer + version header (LinkedIn), bearer + scopes (Pennylane) |
-| Pagination | **`offset`/`limit`** with a `pagination: {limit, offset, total}` object — and **three lists not paginated at all** | `page`/`maxResults`, `@odata.nextLink`, `start`/`count`, `limit`/`offset` without total, opaque cursor |
+| Pagination | **`offset`/`limit`** with a `pagination: {limit, offset, total}` object — **`limit` above 100 is silently capped**, and **three lists are not paginated at all** | `page`/`maxResults`, `@odata.nextLink`, `start`/`count`, `limit`/`offset` without total, opaque cursor |
 | List key | **changes per resource**: `sites`, `pages`, `collections`, `items`, `forms`, `formSubmissions` | `items` (Pennylane), `data` (Boond), `value` (Graph)… |
 | Identifiers | **24-hex strings** (`"62b720ef280c7a7a3be8cabe"`) | integers everywhere else |
 | Errors | `{message, code, externalReference, details}` on every status, **429 included** | `{error, status}` + plain-text 429 (Pennylane) |
@@ -125,7 +132,11 @@ Five traps reproduced on purpose, because they are silent in production:
 4. **`formResponse` is keyed by field *display name*, `fields` by field *id*.**
    The two only meet by name. And `formResponse` is nominative — first name,
    e-mail, phone, free text — so the consumer, not the mock, decides what to
-   keep.
+   keep. The `utm_*` parameters a site pushes into its forms arrive there too,
+   as ordinary keys that no `fields` entry declares.
+6. **`limit=5000` does not fail — it returns 100.** Silently. A consumer that
+   advances its offset by the value it *asked* for, instead of the
+   `pagination.limit` it *got*, skips 4 900 rows per page without an error.
 5. **`localeId: null` on a submission means the primary locale**, not
    "unknown". A page is one entity localised twice: same `id`, different
    `title` and `publishedPath` (`/contact` vs `/en/contact`).
@@ -257,6 +268,7 @@ page one each time, and no assertion about content would notice.
 | `WEBFLOW_MOCK_RATE_LIMIT` / `_RATE_WINDOW` | `60` / `60` | advertised in `X-RateLimit-*` |
 | `WEBFLOW_MOCK_RATE_LIMIT_AFTER` / `_RETRY_AFTER` | unset | a baseline `rate_limit` rule re-applied on every reset |
 | `WEBFLOW_MOCK_FORMS_REQUIRE_REPUBLISH` | `false` | form routes answer 409 |
+| `WEBFLOW_MOCK_TOKEN_KIND` | `site` | `site`: introspect answers 500, as observed; `oauth`: 200 |
 | `WEBFLOW_MOCK_SITE` / `_SITE_SHORT_NAME` / `_SITE_DOMAIN` | `Boréal Conseil` / `boreal-conseil` / `www.boreal-conseil.example` | what the site reports |
 | `WEBFLOW_MOCK_HOST` / `_PORT` | `0.0.0.0` / `8000` | uvicorn bind |
 

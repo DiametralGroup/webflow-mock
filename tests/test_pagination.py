@@ -38,14 +38,23 @@ def test_un_offset_au_dela_du_total_rend_une_page_vide_pas_une_erreur(client, si
     assert corps["pagination"]["offset"] == 9999
 
 
-@pytest.mark.parametrize("valeur", ["0", "-1", "101", "9999", "abc", "2.5"])
-def test_limit_hors_bornes_rend_400_et_n_est_pas_rabote(client, site_id, valeur):
-    """Un plafond silencieux fait croire à un pipeline qu'il a demandé 5000
-    lignes et tout reçu, alors qu'il en a lu 100."""
+@pytest.mark.parametrize("valeur", ["101", "9999"])
+def test_limit_au_dela_du_plafond_est_rabote_en_silence(client, site_id, valeur):
+    """Sondé le 2026-09-25 : `limit=101` → 200, `pagination.limit: 100`. Un
+    consommateur qui avance son offset de SA valeur et non de
+    `pagination.limit` saute des lignes — sans erreur."""
+    reponse = client.get(f"{BASE}/sites/{site_id}/form_submissions?limit={valeur}", headers=H)
+    assert reponse.status_code == 200
+    assert reponse.json()["pagination"]["limit"] == 100
+    assert len(reponse.json()["formSubmissions"]) == 100
+
+
+@pytest.mark.parametrize("valeur", ["0", "-1", "abc", "2.5"])
+def test_limit_nul_ou_illisible_rend_400_avec_le_motif(client, site_id, valeur):
     reponse = client.get(f"{BASE}/sites/{site_id}/pages?limit={valeur}", headers=H)
     assert reponse.status_code == 400
     assert reponse.json()["code"] == "validation_error"
-    assert "1 and 100" in reponse.json()["message"]
+    assert reponse.json()["message"].startswith('Validation Error: ["Value (limit) should match')
 
 
 @pytest.mark.parametrize("valeur", ["-1", "abc", "1.5"])

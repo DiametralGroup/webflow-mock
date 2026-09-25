@@ -34,8 +34,9 @@ CODE_400 = "validation_error"
 CODE_500 = "internal_error"
 
 #: Les messages. Ceux marqués (*) sont des descriptions de statut de la
-#: référence, pas des corps observés — cf. docs/UNVERIFIED-FIELDS.md.
-MESSAGE_401 = "Unauthorized"  # (*)
+#: référence, pas des corps observés — cf. docs/UNVERIFIED-FIELDS.md. Les
+#: autres ont été relevés contre un site réel le 2026-09-25.
+MESSAGE_401 = "Request not authorized"  # sondé le 2026-09-25
 MESSAGE_404 = "Requested resource not found"  # exemple du guide, sans le suffixe
 MESSAGE_409_FORMS = "To access this feature, the site needs to be republished."  # (*)
 MESSAGE_429 = "Too Many Requests"  # exemple de la page « Rate limits »
@@ -88,8 +89,16 @@ def erreur_republication() -> JSONResponse:
 
 
 def erreur_validation(message: str) -> JSONResponse:
-    """400 — `limit` ou `offset` illisibles ou hors bornes."""
+    """400 — `limit` ou `offset` illisibles. Le message porte le MOTIF de
+    validation entre crochets, tel que sondé le 2026-09-25 :
+    `Validation Error: ["Value (limit) should match pattern \"^[1-9]\\d*$\""]`."""
     return erreur(400, CODE_400, f"Validation Error: {message}")
+
+
+def erreur_interne() -> JSONResponse:
+    """500 — `An Internal Error Occurred`. Ce que rend `/token/introspect` à un
+    site token (sondé le 2026-09-25)."""
+    return erreur(500, CODE_500, "An Internal Error Occurred")
 
 
 def erreur_debit(retry_after: int, headers: dict[str, str]) -> JSONResponse:

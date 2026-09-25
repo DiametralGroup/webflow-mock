@@ -44,8 +44,8 @@ from .dataset.realiste import (
     _option,
     horodatage,
     oid,
-    reponse_formulaire,
     slugifier,
+    soumission,
 )
 from .settings import settings
 
@@ -165,20 +165,20 @@ class Evolution:
         site = donnees["sites"][0]
         evenements = donnees["items"][self._collection(donnees, "evenements")["id"]]
         en = site["locales"]["secondary"][0]["id"]
-        soumission = {
-            "id": oid(self.seed, "submission-evolution", k),
-            "displayName": formulaire["displayName"],
-            "siteId": site["id"],
-            "workspaceId": site["workspaceId"],
-            "dateSubmitted": stamp,
-            "formResponse": reponse_formulaire(rng, cle_formulaire, evenements),
-            "localeId": en if rng.random() < 0.12 else None,
-            "formId": formulaire["id"],
-        }
+        nouvelle = soumission(
+            self.seed,
+            rng,
+            oid(self.seed, "submission-evolution", k),
+            site,
+            formulaire,
+            stamp,
+            en if rng.random() < 0.12 else None,
+            evenements,
+        )
         # EN TÊTE : le tri est décroissant, et c'est ce qui fait dériver
         # l'offset d'un consommateur en train de paginer.
-        donnees["form_submissions"].insert(0, soumission)
-        return {"soumission": soumission["id"], "formulaire": formulaire["displayName"]}
+        donnees["form_submissions"].insert(0, nouvelle)
+        return {"soumission": nouvelle["id"], "formulaire": formulaire["displayName"]}
 
     def _evt_nouvelle_soumission(
         self, donnees: dict[str, Any], rng: random.Random, stamp: str, k: int

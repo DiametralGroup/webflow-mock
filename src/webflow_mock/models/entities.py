@@ -55,6 +55,12 @@ class CustomDomain(Permissif):
     id: str
     url: str = Field(description="Le nom de domaine, sans schéma.")
     lastPublished: str | None = None
+    fullSiteCompiledAt: str | None = Field(
+        default=None,
+        json_schema_extra=unverified(
+            "observé le 2026-09-25 sur un site réel, absent de la référence"
+        ),
+    )
 
 
 class Locale(Permissif):
@@ -81,6 +87,12 @@ class Site(Permissif):
     shortName: str
     lastPublished: str | None = None
     lastUpdated: str
+    fullSiteCompiledAt: str | None = Field(
+        default=None,
+        json_schema_extra=unverified(
+            "observé le 2026-09-25 sur un site réel, absent de la référence"
+        ),
+    )
     previewUrl: str
     timeZone: str
     parentFolderId: str | None = None
@@ -139,6 +151,12 @@ class Page(Permissif):
     canBranch: bool = False
     isBranch: bool = False
     branchId: str | None = None
+    shouldPublish: bool | None = Field(
+        default=None,
+        json_schema_extra=unverified(
+            "observé le 2026-09-25 sur un site réel, absent de la référence"
+        ),
+    )
     seo: Seo
     openGraph: OpenGraph
     localeId: str | None = Field(
@@ -273,6 +291,13 @@ class Form(Permissif):
     pageId: str
     pageName: str
     formElementId: str | None = None
+    componentId: str | None = Field(
+        default=None,
+        json_schema_extra=unverified(
+            "observé le 2026-09-25 : le composant réutilisable qui porte le formulaire"
+        ),
+    )
+    componentElementId: str | None = None
     workspaceId: str
     createdOn: str
     lastUpdated: str
@@ -307,18 +332,29 @@ class FormSubmission(Permissif):
     siteId: str
     workspaceId: str
     dateSubmitted: str
-    formResponse: dict[str, Any]
+    formResponse: dict[str, Any] = Field(
+        description=(
+            "Les réponses, clé par nom de champ affiché. Les paramètres `utm_*` que "
+            "le site pousse dans le formulaire y arrivent comme des champs ordinaires."
+        )
+    )
     localeId: str | None = None
     formId: str
+    formElementId: str | None = None
+    componentElementId: str | None = None
+    pageId: str | None = Field(
+        default=None,
+        json_schema_extra=unverified(
+            "observé le 2026-09-25 : la page depuis laquelle la soumission a été faite"
+        ),
+    )
+    publishedPath: str | None = None
+    schema_: list[Any] = Field(default_factory=list, alias="schema")
 
 
 class ListeFormSubmissions(Permissif):
-    """Servie de la plus récente à la plus ancienne — cf. UNVERIFIED-FIELDS."""
+    """Servie de la plus récente à la plus ancienne — non documenté, mais
+    observé sur un site réel le 2026-09-25."""
 
-    formSubmissions: list[FormSubmission] = Field(
-        json_schema_extra=unverified(
-            "l'ordre de tri (dateSubmitted décroissant) n'est pas documenté ; il est "
-            "reproduit tel qu'observé dans les exemples et l'interface"
-        )
-    )
+    formSubmissions: list[FormSubmission]
     pagination: Pagination

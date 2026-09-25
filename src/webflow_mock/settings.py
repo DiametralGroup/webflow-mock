@@ -67,9 +67,10 @@ class Settings:
     # réglages quand même, parce que le défaut se voit dans `pagination.limit`
     # et qu'un consommateur doit pouvoir éprouver un défaut plus bas.
     #
-    # `limit` hors bornes rend 400 : il n'est PAS raboté en silence. Cf.
-    # docs/UNVERIFIED-FIELDS.md — le fournisseur documente le plafond, pas ce
-    # qu'il fait quand on le dépasse ; refuser est le côté sûr de l'erreur.
+    # Sondé le 2026-09-25 : `limit` AU-DELÀ du plafond est RABOTÉ en silence
+    # (`limit=101` → 200, `pagination.limit: 100`), tandis qu'un `limit` nul,
+    # négatif ou illisible rend 400 `validation_error` avec le motif de
+    # validation dans le message. Les deux se reproduisent tels quels.
     limite_defaut: int = 100
     limite_max: int = 100
 
@@ -83,6 +84,14 @@ class Settings:
     site_name: str = "Boréal Conseil"
     site_short_name: str = "boreal-conseil"
     site_domain: str = "www.boreal-conseil.example"
+
+    #: La NATURE du jeton : `site` (un site token, généré dans les réglages du
+    #: site) ou `oauth` (un jeton d'application Data Client). Sondé le
+    #: 2026-09-25 contre l'API réelle : avec un site token,
+    #: `GET /token/introspect` rend **500 `internal_error`** — la référence le
+    #: réserve aux applications. Un connecteur qui s'en sert comme test de
+    #: fumée échoue donc avant d'avoir rien lu. `authorized_by`, lui, répond.
+    token_kind: str = "site"
 
     #: Un site dont les formulaires exigent une republication. Chez le
     #: fournisseur, `/sites/{id}/forms` rend 409 `forms_require_republish` tant
@@ -119,6 +128,7 @@ class Settings:
         self.site_name = os.environ.get("WEBFLOW_MOCK_SITE", "Boréal Conseil")
         self.site_short_name = os.environ.get("WEBFLOW_MOCK_SITE_SHORT_NAME", "boreal-conseil")
         self.site_domain = os.environ.get("WEBFLOW_MOCK_SITE_DOMAIN", "www.boreal-conseil.example")
+        self.token_kind = os.environ.get("WEBFLOW_MOCK_TOKEN_KIND", "site")
         self.forms_require_republish = _flag("WEBFLOW_MOCK_FORMS_REQUIRE_REPUBLISH", False)
         self.evolution_enabled = _flag("WEBFLOW_MOCK_EVOLUTION_ENABLED", True)
         self.evolution_interval = float(os.environ.get("WEBFLOW_MOCK_EVOLUTION_INTERVAL", "60"))

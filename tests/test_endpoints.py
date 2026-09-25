@@ -45,7 +45,9 @@ def _substituer(chemin: str, donnees: dict) -> str:
 def test_chaque_route_repond_200(client, donnees, chemin):
     url = _substituer(chemin, donnees)
     reponse = client.get(url, headers=H)
-    assert reponse.status_code == 200, f"{url} → {reponse.status_code} {reponse.text[:200]}"
+    # Un site token n'a pas d'introspection : 500, sondé le 2026-09-25.
+    attendu = 500 if url.endswith("/token/introspect") else 200
+    assert reponse.status_code == attendu, f"{url} → {reponse.status_code} {reponse.text[:200]}"
 
 
 @pytest.mark.parametrize("chemin", ROUTES)
@@ -79,5 +81,5 @@ def test_chaque_route_declare_son_scope(client, donnees):
     client.post("/__admin/scopes", headers=ADMIN, json={"scopes": []})
     for chemin in ROUTES:
         url = _substituer(chemin, donnees)
-        attendu = 200 if url.endswith("/token/introspect") else 403
+        attendu = 500 if url.endswith("/token/introspect") else 403
         assert client.get(url, headers=H).status_code == attendu, url

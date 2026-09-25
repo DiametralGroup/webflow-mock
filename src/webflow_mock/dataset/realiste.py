@@ -251,6 +251,9 @@ def _site(seed: int, locales: dict[str, Any]) -> dict[str, Any]:
         "shortName": settings.site_short_name,
         "lastPublished": _dt(DERNIERE_MAJ - timedelta(days=1), 17, 42, 9, 331),
         "lastUpdated": _dt(DERNIERE_MAJ, 11, 6, 27, 502),
+        # Observé le 2026-09-25, absent de la référence : l'instant de la
+        # dernière compilation du site entier — porté aussi par chaque domaine.
+        "fullSiteCompiledAt": _dt(DERNIERE_MAJ - timedelta(days=1), 17, 42, 3, 12),
         "previewUrl": (
             f"https://screenshots.webflow.com/sites/{site_id}/"
             "20260712110627_a3f9c1e07d4b8e2f6c5a1b3d9e7f0a2c.png"
@@ -262,11 +265,13 @@ def _site(seed: int, locales: dict[str, Any]) -> dict[str, Any]:
                 "id": oid(seed, "domain", 1),
                 "url": settings.site_domain,
                 "lastPublished": _dt(DERNIERE_MAJ - timedelta(days=1), 17, 42, 9, 331),
+                "fullSiteCompiledAt": _dt(DERNIERE_MAJ - timedelta(days=1), 17, 42, 3, 12),
             },
             {
                 "id": oid(seed, "domain", 2),
                 "url": settings.site_domain.removeprefix("www."),
                 "lastPublished": _dt(DERNIERE_MAJ - timedelta(days=1), 17, 42, 9, 331),
+                "fullSiteCompiledAt": _dt(DERNIERE_MAJ - timedelta(days=1), 17, 42, 3, 12),
             },
         ],
         "locales": locales,
@@ -341,6 +346,8 @@ def _pages(
             "canBranch": not gabarit,
             "isBranch": False,
             "branchId": None,
+            # Observé le 2026-09-25, absent de la référence.
+            "shouldPublish": not brouillon and not archivee,
         }
         primaires.append(
             {
@@ -867,6 +874,11 @@ def _formulaires(
                 "pageId": page["id"],
                 "pageName": page["title"],
                 "formElementId": _uuid(seed, "formelement", cle),
+                # Observés le 2026-09-25 : un formulaire posé dans un COMPOSANT
+                # réutilisable porte l'identifiant du composant et de son
+                # instance. Ceux-ci sont posés directement dans la page.
+                "componentId": None,
+                "componentElementId": None,
                 "workspaceId": site["workspaceId"],
                 "createdOn": _instant(rng, cree),
                 "lastUpdated": _maj(rng, cree),
@@ -879,6 +891,7 @@ def _formulaires(
                     }
                     for nom_champ, type_ in champs
                 },
+                "_chemin": page["publishedPath"] if page["publishedPath"] != "/" else "",
                 "responseSettings": {
                     "redirectUrl": f"https://{settings.site_domain}/merci",
                     "redirectMethod": "GET",
@@ -1005,20 +1018,69 @@ def _soumissions(  # noqa: PLR0917 — idem
                 numero += 1
                 anglaise = rng.random() < 0.12
                 soumissions.append(
-                    {
-                        "id": oid(seed, "submission", numero),
-                        "displayName": formulaire["displayName"],
-                        "siteId": site["id"],
-                        "workspaceId": site["workspaceId"],
-                        "dateSubmitted": _instant(rng, quand, ouvre=False),
-                        "formResponse": reponse_formulaire(rng, cle, evenements),
-                        "localeId": en if anglaise else None,
-                        "formId": formulaire["id"],
-                    }
+                    soumission(
+                        seed,
+                        rng,
+                        oid(seed, "submission", numero),
+                        site,
+                        formulaire,
+                        _instant(rng, quand, ouvre=False),
+                        en if anglaise else None,
+                        evenements,
+                    )
                 )
         jour += timedelta(days=7)
     soumissions.sort(key=lambda s: s["dateSubmitted"], reverse=True)
     return soumissions
+
+
+def soumission(  # noqa: PLR0917 — un constructeur de fixture porte ses parties
+    seed: int,
+    rng: random.Random,
+    ident: str,
+    site: dict[str, Any],
+    formulaire: dict[str, Any],
+    quand: str,
+    locale_id: str | None,
+    evenements: list[dict[str, Any]],
+) -> dict[str, Any]:
+    """Une soumission, dans la forme OBSERVÉE le 2026-09-25 — plus riche que
+    la référence : elle porte la page (`pageId`, `publishedPath`), l'élément de
+    formulaire, et un `schema` vide. Les paramètres `utm_*` que le site pousse
+    dans le formulaire arrivent comme des champs ordinaires de `formResponse`."""
+    del seed
+    reponse = reponse_formulaire(rng, formulaire["_cle"], evenements)
+    if formulaire["_cle"] in {"contact", "lb_mlops", "lb_cyber"} and rng.random() < 0.6:
+        source, medium, campagne = rng.choice(UTM)
+        reponse.update({"utm_source": source, "utm_medium": medium, "utm_campaign": campagne})
+    return {
+        "id": ident,
+        "displayName": formulaire["displayName"],
+        "siteId": site["id"],
+        "workspaceId": site["workspaceId"],
+        "dateSubmitted": quand,
+        "formResponse": reponse,
+        "localeId": locale_id,
+        "formId": formulaire["id"],
+        "formElementId": formulaire["formElementId"],
+        "componentElementId": formulaire["componentElementId"],
+        "pageId": formulaire["pageId"],
+        "publishedPath": formulaire["_chemin"]
+        if locale_id is None
+        else "/en" + formulaire["_chemin"],
+        "schema": [],
+    }
+
+
+#: (utm_source, utm_medium, utm_campaign) — l'attribution que le site pousse
+#: dans ses formulaires. Aucune identité : c'est la campagne, pas la personne.
+UTM: tuple[tuple[str, str, str], ...] = (
+    ("linkedin", "social", "livre-blanc-mlops-2026"),
+    ("linkedin", "paid", "recrutement-data-q3"),
+    ("google", "cpc", "audit-cybersecurite"),
+    ("newsletter", "email", "lettre-juin-2026"),
+    ("meetup", "event", "meetup-powerbi-lyon"),
+)
 
 
 def _utilisateur(seed: int) -> dict[str, Any]:

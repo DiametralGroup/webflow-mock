@@ -26,15 +26,16 @@ c'est le but.
 │    propriété structurelle d'une pagination par offset, et `page_drift`       │
 │    l'injecte à la demande pour qu'un consommateur la rencontre en test.      │
 │                                                                              │
-│ 4. `limit` HORS BORNES REND 400. Le fournisseur documente « max limit: 100 » │
-│    sans dire ce qu'il fait au-delà ; refuser est le côté sûr de l'erreur     │
-│    (cf. docs/UNVERIFIED-FIELDS.md). Un plafond silencieux ferait croire à   │
-│    un pipeline qu'il a demandé 5000 lignes et tout reçu.                     │
+│ 4. `limit` AU-DELÀ DE 100 EST RABOTÉ EN SILENCE (sondé le 2026-09-25 :      │
+│    `limit=101` → 200, `pagination.limit: 100`). Un pipeline qui avance son   │
+│    offset de SA valeur et non de `pagination.limit` saute des lignes sans   │
+│    erreur. Nul, négatif ou illisible → 400 `validation_error`.              │
 └──────────────────────────────────────────────────────────────────────────────┘
 """
 
 from __future__ import annotations
 
+import re
 from typing import Any
 
 from .settings import settings
@@ -45,29 +46,28 @@ class ParametreInvalide(ValueError):
 
 
 def limite_demandee(brut: str | None) -> int:
-    """Valide `limit` et rend la valeur effective. Défaut 100, bornes 1..100."""
-    plafond = settings.limite_max
+    """Valide `limit` et rend la valeur effective. Défaut 100.
+
+    Sondé le 2026-09-25 : au-delà du plafond, la valeur est RABOTÉE en
+    silence (`limit=101` → `pagination.limit: 100`). Nulle, négative ou
+    illisible, elle rend 400 avec le motif de validation du fournisseur. Un
+    consommateur qui demande 5000 lignes en reçoit donc 100 et un `total`
+    qui lui dit de continuer — s'il lit `pagination.limit` plutôt que sa
+    propre valeur pour avancer son offset.
+    """
     if brut is None or brut == "":
         return settings.limite_defaut
-    try:
-        valeur = int(brut)
-    except ValueError as exc:
-        raise ParametreInvalide(f"limit must be an integer between 1 and {plafond}") from exc
-    if valeur < 1 or valeur > plafond:
-        raise ParametreInvalide(f"limit must be between 1 and {plafond}") from None
-    return valeur
+    if not re.fullmatch(r"[1-9]\d*", brut):
+        raise ParametreInvalide('["Value (limit) should match pattern \\"^[1-9]\\\\d*$\\""]')
+    return min(int(brut), settings.limite_max)
 
 
 def offset_demande(brut: str | None) -> int:
     if brut is None or brut == "":
         return 0
-    try:
-        valeur = int(brut)
-    except ValueError as exc:
-        raise ParametreInvalide("offset must be a non-negative integer") from exc
-    if valeur < 0:
-        raise ParametreInvalide("offset must be a non-negative integer")
-    return valeur
+    if not re.fullmatch(r"\d+", brut):
+        raise ParametreInvalide('["Value (offset) should match pattern \\"^\\\\d+$\\""]')
+    return int(brut)
 
 
 def paginer(

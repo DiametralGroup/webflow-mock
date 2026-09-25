@@ -17,7 +17,7 @@ services:
     # Local build by default; swap `build:` for the published image if preferred:
     #   image: ghcr.io/littlebigcode/webflow-mock:latest
     build: .
-    image: webflow-mock:0.1.0
+    image: webflow-mock:0.2.0
     ports:
       - "8015:8000"
     environment:
